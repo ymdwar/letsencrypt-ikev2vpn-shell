@@ -34,6 +34,8 @@ function pre_init_env(){
     do
         domain="$domain -d ${single_domain} "
     done
+    
+    yum update
 }
 
 function install_nginx(){
