@@ -6,3 +6,11 @@
 - [https://github.com/Neilpang/acme.sh]
 
 在此先感谢 quericy 和 Neilpang :)
+
+## 安装步骤：
+`
+wget https://github.com/ymdwar/letsencrypt-ikev2vpn-shell/raw/master/letsencrypt-ikev2vpn.sh
+chmod +x letsencrypt-ikev2vpn.sh & sh letsencrypt-ikev2vpn.sh
+`
+
+enjoy it :)
