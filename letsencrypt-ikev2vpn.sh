@@ -16,13 +16,13 @@ function main_install(){
 
 function pre_init_env(){
     if ! grep -qs -e "release 6" -e "release 7" /etc/redhat-release; then
-      echo "本脚本只支持CentOS/RHEL 6 and 7."
+      echo "the srcipt only support CentOS/RHEL 6 and 7."
       exit 1;
     fi
     
-    # 输入需要进行签名的域名
-    read -p "请输入域名(如果要对多个域名签名，请使用逗号(,)分隔):" domain
-    read -p "需要签名的域名为:${domain_name}, 确认请输入y,取消输入任意键" confirmed
+    
+    read -p "please input the domain name(Multiple domains split by quote(,))):" domain
+    read -p "Is the domain OK(y/n)?:${domain_name}, " confirmed
     
     if ["$confirmed"!="y"]  ; then
         exit 1
@@ -65,7 +65,7 @@ function install_vpn(){
 function install_acme(){
     curl  https://get.acme.sh | sh
     
-    # 使用tls进行发布
+    # use tls issue , use 443 port
     acme.sh  --issue  $domain  --tls
 }
 
@@ -83,6 +83,49 @@ function deploy_cert(){
             --fullchainpath $cert_dir/fullchain.pem \
             --reloadcmd  "service nginx force-reload & service ipsec restart" 
     acme.sh  --upgrade  --auto-upgrade
+    
+    
+cat > /etc/nginx/conf.d/default.conf << EOF
+server {
+    listen                    80 | 443 ssl default_server;
+    server_name                localhost;
+    ssl                        on;
+    ssl_certificate            $cert_dir/cert.pem;
+    ssl_certificate_key        $cert_dir/key.pem;
+    ssl_ciphers                ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA:ECDHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES256-GCM-SHA384:AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256:AES256-SHA:AES128-SHA:DES-CBC3-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
+    ssl_prefer_server_ciphers  on;
+    ssl_protocols              TLSv1 TLSv1.1 TLSv1.2;
+    ssl_session_cache          shared:SSL:10m;
+    ssl_session_timeout        10m;
+    
+    access_log  /var/log/nginx/log/host.access.log  main;
+
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
+    }
+
+    error_page  404              /404.html;
+
+    # redirect server error pages to the static page /50x.html
+    #
+    error_page   500 502 503 504  /50x.html;
+    location = /50x.html {
+        root   /usr/share/nginx/html;
+    }
+    
+    # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+    #
+    #location ~ \.php$ {
+    #    root           html;
+    #    fastcgi_pass   127.0.0.1:9000;
+    #    fastcgi_index  index.php;
+    #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+    #    include        fastcgi_params;
+    #}
 }
+EOF
+}
+
 
 main_install
