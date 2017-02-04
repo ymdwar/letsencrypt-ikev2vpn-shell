@@ -91,7 +91,7 @@ function install_nginx(){
     fi
     echo "$_os_version"
     if [ ! -f "/etc/yum.repos.d/nginx.repo" ]; then
-        cat > /etc/yum.repos.d/nginx.repo << EOF
+        cat > /etc/yum.repos.d/nginx.repo <<EOF
 [nginx]
 name=nginx repo
 baseurl=http://nginx.org/packages/centos/${_os_version}/\$basearch/
