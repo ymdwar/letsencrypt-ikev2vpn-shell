@@ -24,7 +24,7 @@ function pre_init_env(){
     read -p "please input the domain name(Multiple domains split by quote(,))):" domain
     read -p "Is the domain OK(y/n)?:${domain_name}" confirmed
     
-    if [ ! "$confirmed" = "y" ]  ; then
+    if [ ! "$confirmed"="y" ]  ; then
         exit 1
     fi
 
@@ -39,9 +39,9 @@ function pre_init_env(){
 }
 
 function install_nginx(){
-    os_version = "7";
+    os_version="7";
     if grep -qs "release 6" /etc/redhat-release; then
-        os_version = "6"
+        os_version="6"
     fi
     
     if [ ! -f "/etc/yum.repos.d/nginx.repo" ]; then
@@ -54,50 +54,15 @@ enabled=1
 EOF
     fi
     yum -y install nginx
-}
 
-function install_vpn(){
-    wget --no-check-certificate https://github.com/ymdwar/one-key-ikev2-vpn/raw/letsencrypt_special/one-key-ikev2.sh
-    chmod +x one-key-ikev2.sh
-    bash one-key-ikev2.sh
-}
-
-function install_acme(){
-    curl  https://get.acme.sh | sh
-    
-    # use tls issue , use 443 port
-    acme.sh  --issue  $domain  --tls
-}
-
-function deploy_cert(){
-    cert_dir="/etc/ssl.cert"
-    key_file=$cert_dir/key.pem
-    ca_file=$cert_dir/ca.pem    
-    cert_file=$cert_dir/cert.pem
-    fullchain_file=$cert_dir/fullchain.pem
-    
-    if [! -d $cert_dir]; then
-        mkdir $cert_dir
-    else
-        rm -f $key_file $ca_file $cert_file $fullchain_file
-    fi
-    
-    acme.sh  --installcert  $domain  \
-            --keypath  $key_file \
-            --capath   $ca_file \
-            --certpath  $cert_file \
-            --fullchainpath $fullchain_file \
-            --reloadcmd  "service nginx force-reload & service ipsec restart" 
-    acme.sh  --upgrade  --auto-upgrade
-    
-    
-cat > /etc/nginx/conf.d/default.conf << EOF
+        
+    cat > /etc/nginx/conf.d/default.conf << EOF
 server {
     listen                    80 | 443 ssl default_server;
     server_name                localhost;
     ssl                        on;
-    ssl_certificate            $cert_dir/cert.pem;
-    ssl_certificate_key        $cert_dir/key.pem;
+    ssl_certificate            $fullchain_file;
+    ssl_certificate_key        $key_file;
     ssl_ciphers                ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA:ECDHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES256-GCM-SHA384:AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256:AES256-SHA:AES128-SHA:DES-CBC3-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
     ssl_prefer_server_ciphers  on;
     ssl_protocols              TLSv1 TLSv1.1 TLSv1.2;
@@ -133,5 +98,39 @@ server {
 EOF
 }
 
+function install_vpn(){
+    wget --no-check-certificate https://github.com/ymdwar/one-key-ikev2-vpn/raw/letsencrypt_special/one-key-ikev2.sh
+    chmod +x one-key-ikev2.sh
+    bash one-key-ikev2.sh
+}
 
+function install_acme(){
+    curl  https://get.acme.sh | sh
+    
+    # use tls issue , use 443 port
+    acme.sh  --issue  $domain  --tls
+}
+
+function deploy_cert(){
+    cert_dir="/etc/ssl.cert"
+    key_file=$cert_dir/key.pem
+    ca_file=$cert_dir/ca.pem    
+    cert_file=$cert_dir/cert.pem
+    fullchain_file=$cert_dir/fullchain.pem
+    
+    if [ ! -d $cert_dir ]; then
+        mkdir $cert_dir
+    else
+        rm -f $key_file $ca_file $cert_file $fullchain_file >> /dev/null
+    fi
+    
+    acme.sh  --installcert  $domain  \
+            --keypath  $key_file \
+            --capath   $ca_file \
+            --certpath  $cert_file \
+            --fullchainpath $fullchain_file \
+            --reloadcmd  "service nginx force-reload & service ipsec restart" 
+    acme.sh  --upgrade  --auto-upgrade
+    
+}
 main_install
