@@ -1,4 +1,14 @@
 #!/bin/sh
+echo -e "#######################Information############################"
+echo -e "#"
+echo -e "# LETSENCRYPT-IKEV2VPN-SHELL, function man_install is entry point"
+echo -e "# 1. init enveroment"
+echo -e "# 2. install acme"
+echo -e "# 3. issue domain cert"
+echo -e "# 4. install nginx"
+echo -e "# 5. install ikeV2-vpn"
+echo -e "#"
+echo -e "#############################################################"
 
 function main_install(){
     pre_init_env
@@ -68,25 +78,29 @@ function pre_init_env(){
 }
 
 function install_nginx(){
+    echo "#############################################################"
+    echo "# NGINX Installing....."
+    echo "#############################################################"
     cd ~
-    os_version="7";
+    _os_version='7'
     if grep -qs "release 6" /etc/redhat-release; then
-        os_version="6"
+        _os_version='6'
+    else
+        _os_version='7'
     fi
-    
+    echo "$_os_version"
     if [ ! -f "/etc/yum.repos.d/nginx.repo" ]; then
         cat > /etc/yum.repos.d/nginx.repo << EOF
 [nginx]
 name=nginx repo
-baseurl=http://nginx.org/packages/centos/${os_version}/\$basearch/
+baseurl=http://nginx.org/packages/centos/${_os_version}/\$basearch/
 gpgcheck=0
 enabled=1
 EOF
     fi
     yum -y install nginx
 
-        
-    cat > /etc/nginx/conf.d/default.conf << EOF
+    cat > /etc/nginx/conf.d/default.conf <<EOF
 server {
     listen                    80 | 443 ssl default_server;
     server_name                localhost;
@@ -126,26 +140,52 @@ server {
     #}
 }
 EOF
+
+    echo ""
+    echo "# NGINX install complate! "
+    echo "#############################################################"
 }
 
 function install_vpn(){
+    echo "#############################################################"
+    echo "# ikev2-VPN installing..... "
+    echo "#############################################################"
+
     cd ~
     wget --no-check-certificate https://github.com/ymdwar/one-key-ikev2-vpn/raw/letsencrypt_special/one-key-ikev2.sh
     chmod +x one-key-ikev2.sh
     ./one-key-ikev2.sh
+    echo ""
+    echo "# ikev2-VPN install complate! "
+    echo "#############################################################"
 }
 
 function install_acme(){
+    echo "#############################################################"
+    echo "# ACME installing..... "
+    echo "#############################################################"
     cd ~
     wget https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh
     chmod +x acme.sh
     ./acme.sh --install
     source ~/.bashrc
+    echo ""
+    echo "# the ACME install complate!"
+    echo "#############################################################"
+    echo "#############################################################"
+    echo "# the domain cert is issuing..... "
     # use tls issue , use 443 port
     acme.sh  --issue  $domain  --tls
+    echo ""
+    echo "# the domain cert issue complate!"
+    echo "#############################################################"
 }
 
 function deploy_cert(){
+
+    echo "#############################################################"
+    echo "# deploy_cert installing..... "
+    echo "#############################################################"
     cd ~
     
     if [ ! -d $cert_dir ]; then
@@ -161,6 +201,8 @@ function deploy_cert(){
             --fullchainpath $fullchain_file \
             --reloadcmd  "service nginx force-reload & service ipsec restart" 
     acme.sh  --upgrade  --auto-upgrade
-    
+    echo ""
+    echo "# the cert was issue complate"
+    echo "#############################################################"
 }
 main_install
