@@ -3,15 +3,15 @@
 function main_install(){
     pre_init_env
     
-    if [! -f /etc/nginx/nginx.conf];then
+    install_acme
+    
+    deploy_cert
+    
+    if [ ! -f /etc/nginx/nginx.conf ]; then
         install_nginx
     fi
     
     install_vpn
-    
-    install_acme
-    
-    deploy_cert
 }
 
 function pre_init_env(){
@@ -22,15 +22,15 @@ function pre_init_env(){
     
     
     read -p "please input the domain name(Multiple domains split by quote(,))):" domain
-    read -p "Is the domain OK(y/n)?:${domain_name}, " confirmed
+    read -p "Is the domain OK(y/n)?:${domain_name}" confirmed
     
-    if ["$confirmed"!="y"]  ; then
+    if [ ! "$confirmed" = "y" ]  ; then
         exit 1
     fi
 
     domain_array=(${domain//,/ })
     domain=""
-    for $single_domain in ${domain_array[@]}
+    for single_domain in ${domain_array[@]}
     do
         domain="$domain -d ${single_domain} "
     done
@@ -71,16 +71,22 @@ function install_acme(){
 
 function deploy_cert(){
     cert_dir="/etc/ssl.cert"
+    key_file=$cert_dir/key.pem
+    ca_file=$cert_dir/ca.pem    
+    cert_file=$cert_dir/cert.pem
+    fullchain_file=$cert_dir/fullchain.pem
+    
     if [! -d $cert_dir]; then
         mkdir $cert_dir
     else
-        rm -f $cert_dir/key.pem $cert_dir/ca.pem $cert_dir/cert.pem $cert_dir/fullchain.pem
+        rm -f $key_file $ca_file $cert_file $fullchain_file
     fi
     
     acme.sh  --installcert  $domain  \
-            --keypath  $cert_dir/key.pem \
-            --certpath  $cert_dir/cert.pem \
-            --fullchainpath $cert_dir/fullchain.pem \
+            --keypath  $key_file \
+            --capath   $ca_file \
+            --certpath  $cert_file \
+            --fullchainpath $fullchain_file \
             --reloadcmd  "service nginx force-reload & service ipsec restart" 
     acme.sh  --upgrade  --auto-upgrade
     
