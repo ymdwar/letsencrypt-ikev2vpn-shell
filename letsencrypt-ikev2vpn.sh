@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/usr/bin/env sh
+
 echo -e "#######################Information############################"
 echo -e "#"
 echo -e "# LETSENCRYPT-IKEV2VPN-SHELL, function man_install is entry point"
