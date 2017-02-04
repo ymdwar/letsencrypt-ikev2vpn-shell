@@ -57,7 +57,7 @@ EOF
 }
 
 function install_vpn(){
-    wget --no-check-certificate https://raw.githubusercontent.com/quericy/one-key-ikev2-vpn/master/one-key-ikev2.sh
+    wget --no-check-certificate https://github.com/ymdwar/one-key-ikev2-vpn/raw/letsencrypt_special/one-key-ikev2.sh
     chmod +x one-key-ikev2.sh
     bash one-key-ikev2.sh
 }
