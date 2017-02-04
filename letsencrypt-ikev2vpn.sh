@@ -20,7 +20,6 @@ function pre_init_env(){
       exit 1;
     fi
     
-    
     read -p "please input the domain name(Multiple domains split by quote(,))):" domain
     read -p "Is the domain OK(y/n)?:${domain_name}" confirmed
     
@@ -35,10 +34,41 @@ function pre_init_env(){
         domain="$domain -d ${single_domain} "
     done
     
+    cert_dir="/etc/ssl.cert"
+    key_file=$cert_dir/key.pem
+    ca_file=$cert_dir/ca.pem    
+    cert_file=$cert_dir/cert.pem
+    fullchain_file=$cert_dir/fullchain.pem
+    
+    echo "####################################"
+    get_char(){
+        SAVEDSTTY=`stty -g`
+        stty -echo
+        stty cbreak
+        dd if=/dev/tty bs=1 count=1 2> /dev/null
+        stty -raw
+        stty echo
+        stty $SAVEDSTTY
+    }
+    echo ""
+    echo -e "#######################Information############################"
+    echo -e "#"
+    echo -e "# - Domain Name: ${domain}"
+    echo -e "# - key_file: ${key_file}"
+    echo -e "# - ca_file: ${ca_file}"
+    echo -e "# - cert_file: ${cert_file}"
+    echo -e "# - fullchain_file: ${fullchain_file}"
+    echo -e "#"
+    echo -e "#############################################################"
+    echo -e ""
+    echo "Press any key to start...or Press Ctrl+C to cancel"
+    char=`get_char`
+    
     yum update
 }
 
 function install_nginx(){
+    cd ~
     os_version="7";
     if grep -qs "release 6" /etc/redhat-release; then
         os_version="6"
@@ -99,26 +129,24 @@ EOF
 }
 
 function install_vpn(){
+    cd ~
     wget --no-check-certificate https://github.com/ymdwar/one-key-ikev2-vpn/raw/letsencrypt_special/one-key-ikev2.sh
     chmod +x one-key-ikev2.sh
-    bash one-key-ikev2.sh
+    ./one-key-ikev2.sh
 }
 
 function install_acme(){
+    cd ~
     wget https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh
     chmod +x acme.sh
-    
-    source .baserc
+    ./acme.sh --install
+    source ~/.bashrc
     # use tls issue , use 443 port
     acme.sh  --issue  $domain  --tls
 }
 
 function deploy_cert(){
-    cert_dir="/etc/ssl.cert"
-    key_file=$cert_dir/key.pem
-    ca_file=$cert_dir/ca.pem    
-    cert_file=$cert_dir/cert.pem
-    fullchain_file=$cert_dir/fullchain.pem
+    cd ~
     
     if [ ! -d $cert_dir ]; then
         mkdir $cert_dir
