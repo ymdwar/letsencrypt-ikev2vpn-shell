@@ -105,8 +105,10 @@ function install_vpn(){
 }
 
 function install_acme(){
-    curl  https://get.acme.sh | sh
+    wget https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh
+    chmod +x acme.sh
     
+    source .baserc
     # use tls issue , use 443 port
     acme.sh  --issue  $domain  --tls
 }
