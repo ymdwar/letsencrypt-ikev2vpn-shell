@@ -6,16 +6,14 @@ function __debug() {
   echo "[`date`][DEBUG] $1 "
 }
 
-# echo "## 升级操作系统最新版本..."
+# __debug "## 升级操作系统最新版本..."
 # yum update
-# echo "## 操作系统升级完毕!"
 
 # __debug "## 安装acme.sh..."
 # cd ~
 # wget https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh
 # source acme.sh --install --debug
 # source ~/.bashrc
-# __debug "## acme.sh安装完毕！"
 
 __debug "## 初始化脚本变量"
 #设置域名 adusir.net
@@ -29,14 +27,13 @@ ca_file=$cert_dir/ca.pem
 cert_file=$cert_dir/cert.pem
 fullchain_file=$cert_dir/fullchain.pem
 
-aliyum_api_key="LTAIFKSyg4z9Rbro"
-aliyum_api_sec="I8ZD9aEM9GAn5Z5dBFLuykJq2X6Ng4"
+aliyum_api_key="LTAIFKSyg4z9Rbro invalid key you know that"
+aliyum_api_sec="I8ZD9aEM9GAn5Z5dBFLuykJq2X6Ng4 invalid secrit you know that"
 
 __debug "## 使用acme.sh给域名颁布数字证书(使用dns的方式)...."
 export Ali_Key=${aliyum_api_key}
 export Ali_Secret=${aliyum_api_sec}
 acme.sh --debug --issue $domain_param --dns dns_ali
-__debug "## 域名数字证书颁布完毕! "
 
 __debug "## 给应用服务器安装数字证书..."
 if [ ! -d $cert_dir ]; then
