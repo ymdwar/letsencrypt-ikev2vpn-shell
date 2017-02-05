@@ -1,209 +1,116 @@
-#!/usr/bin/env sh
+#! /usr/bash
+# set your aliyun api
+aliyum_api_key=$Ali_Key
+aliyum_api_sec=$Ali_Secret
+# set your domain name (eg:  example.com)
+domain_name=""
 
-echo -e "#######################Information############################"
-echo -e "#"
-echo -e "# LETSENCRYPT-IKEV2VPN-SHELL, function man_install is entry point"
-echo -e "# 1. init enveroment"
-echo -e "# 2. install acme"
-echo -e "# 3. issue domain cert"
-echo -e "# 4. install nginx"
-echo -e "# 5. install ikeV2-vpn"
-echo -e "#"
-echo -e "#############################################################"
-
-function main_install(){
-    pre_init_env
-    
-    install_acme
-    
-    deploy_cert
-    
-    if [ ! -f /etc/nginx/nginx.conf ]; then
-        install_nginx
-    fi
-    
-    install_vpn
+function __debug() {
+  echo "[`date`][DEBUG] $1 "
 }
 
-function pre_init_env(){
-    if ! grep -qs -e "release 6" -e "release 7" /etc/redhat-release; then
-      echo "the srcipt only support CentOS/RHEL 6 and 7."
-      exit 1;
-    fi
-    
-    read -p "please input the domain name(Multiple domains split by quote(,))):" domain
-    read -p "Is the domain OK(y/n)?:${domain_name}" confirmed
-    
-    if [ ! "$confirmed"="y" ]  ; then
-        exit 1
-    fi
-
-    domain_array=(${domain//,/ })
-    domain=""
-    for single_domain in ${domain_array[@]}
-    do
-        domain="$domain -d ${single_domain} "
-    done
-    
-    cert_dir="/etc/ssl.cert"
-    key_file=$cert_dir/key.pem
-    ca_file=$cert_dir/ca.pem    
-    cert_file=$cert_dir/cert.pem
-    fullchain_file=$cert_dir/fullchain.pem
-    
-    echo "####################################"
-    get_char(){
-        SAVEDSTTY=`stty -g`
-        stty -echo
-        stty cbreak
-        dd if=/dev/tty bs=1 count=1 2> /dev/null
-        stty -raw
-        stty echo
-        stty $SAVEDSTTY
-    }
-    echo ""
-    echo -e "#######################Information############################"
-    echo -e "#"
-    echo -e "# - Domain Name: ${domain}"
-    echo -e "# - key_file: ${key_file}"
-    echo -e "# - ca_file: ${ca_file}"
-    echo -e "# - cert_file: ${cert_file}"
-    echo -e "# - fullchain_file: ${fullchain_file}"
-    echo -e "#"
-    echo -e "#############################################################"
-    echo -e ""
-    echo "Press any key to start...or Press Ctrl+C to cancel"
-    char=`get_char`
-    
-    yum update
+function __error(){
+    echo -e “\033[41;33m[`date`][ERROR] $1 \033[0m” 
 }
 
-function install_nginx(){
-    echo "#############################################################"
-    echo "# NGINX Installing....."
-    echo "#############################################################"
-    cd ~
-    _os_version='7'
-    if grep -qs "release 6" /etc/redhat-release; then
-        _os_version='6'
-    else
-        _os_version='7'
-    fi
-    echo "$_os_version"
-    if [ ! -f "/etc/yum.repos.d/nginx.repo" ]; then
-        cat > /etc/yum.repos.d/nginx.repo <<EOF
-[nginx]
-name=nginx repo
-baseurl=http://nginx.org/packages/centos/${_os_version}/\$basearch/
-gpgcheck=0
-enabled=1
-EOF
-    fi
-    yum -y install nginx
+## only support CentOS6/7
+__debug "check the the OS has been supportted."
+if ! grep -qs -e "release 6." -e "release 7." /etc/redhat-release; then
+    __error "This script only supports CentOS/RHEL 6 and 7."
+    exit 1;
+fi
 
-    cat > /etc/nginx/conf.d/default.conf <<EOF
-server {
-    listen                    80 | 443 ssl default_server;
-    server_name                localhost;
-    ssl                        on;
-    ssl_certificate            $fullchain_file;
-    ssl_certificate_key        $key_file;
-    ssl_ciphers                ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA:ECDHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES256-GCM-SHA384:AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256:AES256-SHA:AES128-SHA:DES-CBC3-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
-    ssl_prefer_server_ciphers  on;
-    ssl_protocols              TLSv1 TLSv1.1 TLSv1.2;
-    ssl_session_cache          shared:SSL:10m;
-    ssl_session_timeout        10m;
-    
-    access_log  /var/log/nginx/log/host.access.log  main;
+if [ -z $aliyum_api_key ]; then
+  __error "the aliyum_api_key and aliyum_api_key must be setting."
+  exit 1;
+fi
 
-    location / {
-        root   /usr/share/nginx/html;
-        index  index.html index.htm;
-    }
+if [ -z $domain_name ]; then
+   __error "the domain name must be setting."
+   exit 1;
+fi
 
-    error_page  404              /404.html;
+__debug "the operation system and software updating...."
+yum update
 
-    # redirect server error pages to the static page /50x.html
-    #
-    error_page   500 502 503 504  /50x.html;
-    location = /50x.html {
-        root   /usr/share/nginx/html;
-    }
-    
-    # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
-    #
-    #location ~ \.php$ {
-    #    root           html;
-    #    fastcgi_pass   127.0.0.1:9000;
-    #    fastcgi_index  index.php;
-    #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
-    #    include        fastcgi_params;
-    #}
-}
+__debug "install strongswan"
+yum install -y strongswan 
+
+__debug "dowanlod acme.sh and install it. "
+curl https://get.acme.sh | sh
+source ~/.bashrc
+
+__debug "acme.sh has been ready. init the variable. "
+
+# list sub domains
+domain_param=" -d $domain_name \
+     -d www.$domain_name \
+cert_dir="/etc/my_ssl_cert"
+my_key_file=$cert_dir/key.pem
+my_ca_file=$cert_dir/ca.pem    
+my_cert_file=$cert_dir/cert.pem
+my_fullchain_file=$cert_dir/fullchain.pem
+__debug "check the cert dir"
+if [ ! -d $cert_dir ]; then
+  mkdir $cert_dir
+fi
+
+__debug "export aliyun Ali_Key and Ali_Secret.  "
+export Ali_Key=${aliyum_api_key}
+export Ali_Secret=${aliyum_api_sec}
+__debug "excute issue domain cert domain param is $domain_param"
+acme.sh --debug --issue $domain_param --dns dns_ali
+
+__debug "install cert to the cert dir"
+acme.sh --debug --installcert -d $domain_name  \
+        --keypath  $my_key_file \
+        --capath   $my_ca_file \
+        --certpath  $my_cert_file \
+        --fullchainpath $my_fullchain_file \
+        --reloadcmd  "systemctl restart strongswan.service && systemctl restart firewalld.service "  
+__debug "complete"
+
+cp -f $my_key_file /etc/strongswan/ipsec.d/private/serverKey.pem
+cp -f $my_key_file /etc/strongswan/ipsec.d/private/clientKey.pem
+cp -f $my_ca_file /etc/strongswan/ipsec.d/cacerts/caCert.pem
+cp -f $my_cert_file /etc/strongswan/ipsec.d/certs/server.cert.pem
+cp -f $my_cert_file /etc/strongswan/ipsec.d/certs/client.cert.pem
+
+__debug "dowload the ipsec.conf and copy to /etc/strongswan/ipsec.conf. "
+wget https://github.com/ymdwar/letsencrypt-ikev2vpn-shell/raw/master/ipsec.conf
+cp -f ipsec.conf /etc/strongswan/ipsec.conf
+
+__debug "dowload the strongswan.conf and copy to /etc/strongswan/strongswan.conf. "
+wget https://github.com/ymdwar/letsencrypt-ikev2vpn-shell/raw/master/strongswan.conf
+cp -f strongswan.conf /etc/strongswan/strongswan.conf
+
+__debug "set user name and password"
+cat > /etc/strongswan/ipsec.secrets<<EOF
+: RSA serverKey.pem
+: PSK "myPskPass"
+myUser  : EAP "myPass"
+myUser %any : XAUTH "myPass"
 EOF
 
-    echo ""
-    echo "# NGINX install complate! "
-    echo "#############################################################"
-}
+__debug "config the firewall"
+if ! systemctl is-active firewalld > /dev/null; then
+    systemctl start firewalld.service
+fi
+firewall-cmd --permanent --add-service="ipsec"
+firewall-cmd --permanent --add-port=500/udp
+firewall-cmd --permanent --add-port=4500/udp
+firewall-cmd --permanent --add-masquerade
+firewall-cmd --reload
 
-function install_vpn(){
-    echo "#############################################################"
-    echo "# ikev2-VPN installing..... "
-    echo "#############################################################"
+systemctl enable strongswan.service
+systemctl start strongswan.service
+systemctl restart firewalld.service
 
-    cd ~
-    wget --no-check-certificate https://github.com/ymdwar/one-key-ikev2-vpn/raw/letsencrypt_special/one-key-ikev2.sh
-    chmod +x one-key-ikev2.sh
-    ./one-key-ikev2.sh
-    echo ""
-    echo "# ikev2-VPN install complate! "
-    echo "#############################################################"
-}
+echo "##############################################"
+echo "## the use name: myUser"
+echo "## the password: myPass"
+echo "## the PSK: myPass"
+echo "## You can change the user name and password, edit /etc/strongswan/ipsec.secrets "
+echo "############################################"
 
-function install_acme(){
-    echo "#############################################################"
-    echo "# ACME installing..... "
-    echo "#############################################################"
-    cd ~
-    wget https://raw.githubusercontent.com/Neilpang/acme.sh/master/acme.sh
-    chmod +x acme.sh
-    ./acme.sh --install
-    source ~/.bashrc
-    echo ""
-    echo "# the ACME install complate!"
-    echo "#############################################################"
-    echo "#############################################################"
-    echo "# the domain cert is issuing..... "
-    # use tls issue , use 443 port
-    acme.sh  --issue  $domain  --tls
-    echo ""
-    echo "# the domain cert issue complate!"
-    echo "#############################################################"
-}
-
-function deploy_cert(){
-
-    echo "#############################################################"
-    echo "# deploy_cert installing..... "
-    echo "#############################################################"
-    cd ~
-    
-    if [ ! -d $cert_dir ]; then
-        mkdir $cert_dir
-    else
-        rm -f $key_file $ca_file $cert_file $fullchain_file >> /dev/null
-    fi
-    
-    acme.sh  --installcert  $domain  \
-            --keypath  $key_file \
-            --capath   $ca_file \
-            --certpath  $cert_file \
-            --fullchainpath $fullchain_file \
-            --reloadcmd  "service nginx force-reload && service ipsec restart" 
-    acme.sh  --upgrade  --auto-upgrade
-    echo ""
-    echo "# the cert was issue complate"
-    echo "#############################################################"
-}
-main_install
+__debug "complete all, enjoy it :) "
