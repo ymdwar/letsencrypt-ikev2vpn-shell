@@ -200,7 +200,7 @@ function deploy_cert(){
             --capath   $ca_file \
             --certpath  $cert_file \
             --fullchainpath $fullchain_file \
-            --reloadcmd  "service nginx force-reload & service ipsec restart" 
+            --reloadcmd  "service nginx force-reload && service ipsec restart" 
     acme.sh  --upgrade  --auto-upgrade
     echo ""
     echo "# the cert was issue complate"
